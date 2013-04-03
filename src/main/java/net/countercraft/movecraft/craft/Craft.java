@@ -33,12 +33,16 @@ public class Craft {
 	private MovecraftLocation[] blockList;
 	private World w;
 	private AtomicBoolean processing = new AtomicBoolean();
-	private int minX, minZ;
+	private int minX, minZ, maxHeightLimit;
 
 	public Craft( CraftType type, World world ) {
 		this.type = type;
 		this.w = world;
-
+                if (type.getMaxHeightLimit() > w.getMaxHeight() - 1 ){
+                    this.maxHeightLimit=w.getMaxHeight() - 1;
+                }else{
+                    this.maxHeightLimit=type.getMaxHeightLimit();
+                }
 	}
 
 	public boolean isProcessing() {
@@ -78,11 +82,12 @@ public class Craft {
 	}
 
 	public void detect( String playerName, MovecraftLocation startPoint ) {
-		AsyncManager.getInstance().submitTask( new DetectionTask( this, startPoint, type.getMinSize(), type.getMaxSize(), type.getAllowedBlocks(), type.getForbiddenBlocks(), playerName, w ) , this);
+		AsyncManager.getInstance().submitTask( new DetectionTask( this, startPoint, type.getMinSize(), type.getMaxSize(), type.getAllowedBlocks(), type.getForbiddenBlocks(), playerName, w) , this);
 	}
 
 	public void translate( int dx, int dy, int dz ) {
-		AsyncManager.getInstance().submitTask( new TranslationTask( this, dx, dy, dz, hitBox, minX, minZ, w.getMaxHeight() - 1 ), this );
+            //AsyncManager.getInstance().submitTask( new TranslationTask( this, dx, dy, dz, hitBox, minX, minZ, w.getMaxHeight() - 1 ), this );
+            AsyncManager.getInstance().submitTask( new TranslationTask( this, dx, dy, dz, hitBox, minX, minZ, this.maxHeightLimit, type.getMinHeightLimit() ), this );
 	}
 
 	public void rotate( Rotation rotation, MovecraftLocation originPoint ) {
