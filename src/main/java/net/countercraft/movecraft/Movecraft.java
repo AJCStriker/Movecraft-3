@@ -48,46 +48,62 @@ public class Movecraft extends JavaPlugin {
 	public void onEnable() {
 		// Read in config
 		this.saveDefaultConfig();
-		Settings.LOCALE = getConfig().getString( "Locale" );
+		Settings.LOCALE = getConfig().getString("Locale");
 		// if the PilotTool is specified in the config.yml file, use it
-		if(getConfig().getInt("PilotTool")!=0) {
-			logger.log( Level.INFO, "Recognized PilotTool setting of: "+getConfig().getInt("PilotTool"));
-			Settings.PilotTool=getConfig().getInt("PilotTool");
+		if (getConfig().getInt("PilotTool") != 0) {
+			logger.log(Level.INFO, "Recognized PilotTool setting of: "
+					+ getConfig().getInt("PilotTool"));
+			Settings.PilotTool = getConfig().getInt("PilotTool");
 		} else {
-			logger.log( Level.INFO, "No PilotTool setting, using default of 280");
+			logger.log(Level.INFO, "No PilotTool setting, using default of 280");
 		}
-		// if the CompatibilityMode is specified in the config.yml file, use it. Otherwise set to false. - NOT IMPLEMENTED YET - Mark
-		Settings.CompatibilityMode=getConfig().getBoolean("CompatibilityMode", false);
-		
+		// if the CompatibilityMode is specified in the config.yml file, use it.
+		// Otherwise set to false.
+		Settings.CompatibilityMode = getConfig().getBoolean("CompatibilityMode", false);
+		Settings.SinkRateTicks = getConfig().getDouble("SinkRateTicks", 20.0);
+		Settings.SinkCheckTicks = getConfig().getDouble("SinkCheckTicks", 100.0);
 
-		if ( !new File( getDataFolder() + "/localisation/movecraftlang_en.properties" ).exists() ) {
-			this.saveResource( "localisation/movecraftlang_en.properties", false );
+		if (!new File(getDataFolder()
+				+ "/localisation/movecraftlang_en.properties").exists()) {
+			this.saveResource("localisation/movecraftlang_en.properties", false);
 		}
 		I18nSupport.init();
-		if ( shuttingDown && Settings.IGNORE_RESET ) {
-			logger.log( Level.SEVERE, String.format( I18nSupport.getInternationalisedString( "Startup - Error - Reload error" ) ) );
-			logger.log( Level.INFO, String.format( I18nSupport.getInternationalisedString( "Startup - Error - Disable warning for reload" ) ) );
-			getPluginLoader().disablePlugin( this );
+		if (shuttingDown && Settings.IGNORE_RESET) {
+			logger.log(
+					Level.SEVERE,
+					String.format(I18nSupport
+							.getInternationalisedString("Startup - Error - Reload error")));
+			logger.log(
+					Level.INFO,
+					String.format(I18nSupport
+							.getInternationalisedString("Startup - Error - Disable warning for reload")));
+			getPluginLoader().disablePlugin(this);
 		} else {
 
-
 			// Startup procedure
-			AsyncManager.getInstance().runTaskTimer( this, 0, 1 );
-			MapUpdateManager.getInstance().runTaskTimer( this, 0, 1 );
+			AsyncManager.getInstance().runTaskTimer(this, 0, 1);
+			MapUpdateManager.getInstance().runTaskTimer(this, 0, 1);
 
 			CraftManager.getInstance();
 
-			getServer().getPluginManager().registerEvents( new InteractListener(), this );
-			getServer().getPluginManager().registerEvents( new CommandListener(), this );
-			getServer().getPluginManager().registerEvents( new BlockListener(), this );
-			getServer().getPluginManager().registerEvents( new PlayerListener(), this );
+			getServer().getPluginManager().registerEvents(
+					new InteractListener(), this);
+			getServer().getPluginManager().registerEvents(
+					new CommandListener(), this);
+			getServer().getPluginManager().registerEvents(new BlockListener(),
+					this);
+			getServer().getPluginManager().registerEvents(new PlayerListener(),
+					this);
 
 			StorageChestItem.readFromDisk();
 			StorageChestItem.addRecipie();
 
-			new MovecraftMetrics( CraftManager.getInstance().getCraftTypes().length );   
+		 	new MovecraftMetrics(CraftManager.getInstance().getCraftTypes().length ); Removed by
+			
 
-			logger.log( Level.INFO, String.format( I18nSupport.getInternationalisedString( "Startup - Enabled message" ), getDescription().getVersion() ) );
+			logger.log(Level.INFO, String.format(I18nSupport
+					.getInternationalisedString("Startup - Enabled message"),
+					getDescription().getVersion()));
 		}
 	}
 
