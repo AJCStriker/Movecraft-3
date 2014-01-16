@@ -29,12 +29,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 public class CraftManager {
 	private static final CraftManager ourInstance = new CraftManager();
 	private CraftType[] craftTypes;
 	private final Map<World, Set<Craft>> craftList = new ConcurrentHashMap<World, Set<Craft>>();
 	private final HashMap<Player, Craft> craftPlayerIndex = new HashMap<Player, Craft>();
+	private final HashMap<Player, BukkitTask> releaseEvents = new HashMap<Player, BukkitTask>();
 
 	public static CraftManager getInstance() {
 		return ourInstance;
@@ -57,16 +60,20 @@ public class CraftManager {
 
 		HashSet<CraftType> craftTypesSet = new HashSet<CraftType>();
 
+		boolean foundCraft=false;
 		for ( File file : craftsFile.listFiles() ) {
 			if ( file.isFile() ) {
 
 				if ( file.getName().contains( ".craft" ) ) {
 					CraftType type = new CraftType( file );
 					craftTypesSet.add( type );
+					foundCraft=true;
 				}
 			}
 		}
-
+		if(!foundCraft) {
+			Movecraft.getInstance().getLogger().log(Level.SEVERE, "ERROR: NO CRAFTS FOUND!!!");
+		}
 		craftTypes = craftTypesSet.toArray( new CraftType[1] );
 		Movecraft.getInstance().getLogger().log( Level.INFO, String.format( I18nSupport.getInternationalisedString( "Startup - Number of craft files loaded" ), craftTypes.length ) );
 	}
@@ -81,6 +88,7 @@ public class CraftManager {
 	}
 
 	public void removeCraft( Craft c ) {
+		removeReleaseTask(c);
 		craftList.get( c.getW() ).remove( c );
 		if ( getPlayerFromCraft( c ) != null ) {
 			getPlayerFromCraft( c ).sendMessage( String.format( I18nSupport.getInternationalisedString( "Release - Craft has been released message" ) ) );
@@ -112,5 +120,34 @@ public class CraftManager {
 		}
 
 		return null;
+	}
+	
+	public HashMap<Player, BukkitTask> getReleaseEvents(){
+		return releaseEvents;
+	}
+	
+		     
+	public final void addReleaseTask(final Craft c){
+		Player p = getPlayerFromCraft( c );
+		if ( !getReleaseEvents().containsKey( p ) ) {
+			p.sendMessage( String.format( I18nSupport.getInternationalisedString( "Release - Player has left craft" ) ) );
+			BukkitTask releaseTask = new BukkitRunnable() {
+				@Override
+				public void run() {
+					removeCraft(c);
+				}
+			}.runTaskLater( Movecraft.getInstance(), ( 20 * 15 ) );
+			CraftManager.getInstance().getReleaseEvents().put( p, releaseTask );
+		}
+	}
+		 
+	public final void removeReleaseTask(final Craft c){
+		Player p = getPlayerFromCraft( c );
+		if (p!= null){
+			if ( releaseEvents.containsKey(p) && !c.getType().getMoveEntities()) {
+				releaseEvents.get(p).cancel();
+				releaseEvents.remove(p);
+			}
+		}
 	}
 }

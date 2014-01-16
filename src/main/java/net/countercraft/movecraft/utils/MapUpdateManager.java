@@ -47,6 +47,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
+import org.testng.collections.Lists;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -165,10 +166,15 @@ public class MapUpdateManager extends BukkitRunnable {
 				} else {
 					chunks = new HashSet<net.minecraft.server.v1_7_R1.Chunk>();
 				}
+				ArrayList<Player> unupdatedPlayers=new ArrayList<Player>(Arrays.asList(Movecraft.getInstance().getServer().getOnlinePlayers()));
 
 				// Preprocessing
 				for ( MapUpdateCommand c : updatesInWorld ) {
-					MovecraftLocation l = c.getOldBlockLocation();
+					MovecraftLocation l;
+					if(c!=null)
+						l = c.getOldBlockLocation();
+					else 
+						l = null;
 
 					if ( l != null ) {
 						TransferData blockDataPacket = getBlockDataPacket( w.getBlockAt( l.getX(), l.getY(), l.getZ() ).getState(), c.getRotation() );
@@ -202,61 +208,98 @@ public class MapUpdateManager extends BukkitRunnable {
 				ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
 				boolean isFirstChunk=true;
 				
-				final int[] fragileBlocks = new int[]{ 29, 33, 34, 50, 52, 55, 63, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 323, 324, 330, 331, 356, 404 };
+				final int[] fragileBlocks = new int[]{ 26, 29, 33, 34, 50, 52, 54, 55, 63, 64, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 323, 324, 330, 331, 356, 404 };
 				Arrays.sort(fragileBlocks);
 						
 				// Perform core block updates, don't do "fragiles" yet. Don't do Dispensers yet either
 				for ( MapUpdateCommand m : updatesInWorld ) {
-					boolean isFragile=(Arrays.binarySearch(fragileBlocks,m.getTypeID())>=0);
-					
-					if(!isFragile) {
-						// a TypeID less than 0 indicates an explosion
-						if(m.getTypeID()<0) {
-							float explosionPower=m.getTypeID();
-							explosionPower=0.0F-explosionPower/100.0F;
-							w.createExplosion(m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY(), m.getNewBlockLocation().getZ(), explosionPower);
-						} else {
-							updateBlock(m, chunkList, w, dataMap, chunks, cmChunks, false);
-						}
-					}
-					
-					// if the block you just updated had any entities on it, move them. If they are moving, add in their motion to the craft motion
-					if( entityMap.containsKey(m.getNewBlockLocation()) ) {
-						List<EntityUpdateCommand> mapUpdateList=entityMap.get(m.getNewBlockLocation());
-						for(EntityUpdateCommand entityUpdate : mapUpdateList) {
-							Entity entity=entityUpdate.getEntity();
-							Vector pVel=new Vector(entity.getVelocity().getX(),0.0,entity.getVelocity().getZ());
-							if( pVel.getX()==0.0 && entity.getVelocity().getZ()==0.0 ) {
-								Location newLoc=entityUpdate.getNewLocation();
-								
-								// if they have gone through the floor, move them up one block
-								double decimalY=newLoc.getY()-Math.floor(newLoc.getY());
-								if(decimalY>0.50) {
-									newLoc.setY( Math.ceil( newLoc.getY() ) );
-								}
-								entity.teleport(entityUpdate.getNewLocation());
+					if(m!=null) {
+						boolean isFragile=(Arrays.binarySearch(fragileBlocks,m.getTypeID())>=0);
+						
+						if(!isFragile) {
+							// a TypeID less than 0 indicates an explosion
+							if(m.getTypeID()<0) {
+								float explosionPower=m.getTypeID();
+								explosionPower=0.0F-explosionPower/100.0F;
+								w.createExplosion(m.getNewBlockLocation().getX()+0.5, m.getNewBlockLocation().getY()+0.5, m.getNewBlockLocation().getZ()+0.5, explosionPower);
 							} else {
-								Location craftMove=entityUpdate.getNewLocation().subtract(entityUpdate.getOldLocation());
-								entity.teleport(entity.getLocation().add(craftMove));
+								updateBlock(m, chunkList, w, dataMap, chunks, cmChunks, false);
 							}
-							entity.setVelocity(pVel);
 						}
-						entityMap.remove(m.getNewBlockLocation());
+						
+						// if the block you just updated had any entities on it, move them. If they are moving, add in their motion to the craft motion
+						if( entityMap.containsKey(m.getNewBlockLocation()) ) {
+							List<EntityUpdateCommand> mapUpdateList=entityMap.get(m.getNewBlockLocation());
+							for(EntityUpdateCommand entityUpdate : mapUpdateList) {
+								Entity entity=entityUpdate.getEntity();
+								Vector pVel=new Vector(entity.getVelocity().getX(),0.0,entity.getVelocity().getZ());
+								if( pVel.getX()==0.0 && entity.getVelocity().getZ()==0.0 ) {
+									Location newLoc=entityUpdate.getNewLocation();
+									
+									// if they have gone through the floor, move them up one block
+									double decimalY=newLoc.getY()-Math.floor(newLoc.getY());
+									if(decimalY>0.40) {
+										newLoc.setY( Math.ceil( newLoc.getY() ) );
+									}
+									entity.teleport(entityUpdate.getNewLocation());
+								} else {
+									Location craftMove=entityUpdate.getNewLocation().subtract(entityUpdate.getOldLocation());
+									entity.teleport(entity.getLocation().add(craftMove));
+								}
+								entity.setVelocity(pVel);
+							}
+							entityMap.remove(m.getNewBlockLocation());
+						}
 					}
+	
 				}
 
 				// Fix redstone and other "fragiles"				
 				for ( MapUpdateCommand i : updatesInWorld ) {
-					boolean isFragile=(Arrays.binarySearch(fragileBlocks,i.getTypeID())>=0);
-					if(isFragile) {
-						updateBlock(i, chunkList, w, dataMap, chunks, cmChunks, false);
+					if(i!=null) {
+						boolean isFragile=(Arrays.binarySearch(fragileBlocks,i.getTypeID())>=0);
+						if(isFragile) {
+							updateBlock(i, chunkList, w, dataMap, chunks, cmChunks, false);
+							
+
+						}
 					}
 				}
 
-				// Put Dispensers back in now that the ship is reconstructed
 				for ( MapUpdateCommand i : updatesInWorld ) {
-					if(i.getTypeID()==23) {
-						updateBlock(i, chunkList, w, dataMap, chunks, cmChunks, true);
+					if(i!=null) {
+						// Put Dispensers back in now that the ship is reconstructed
+						if(i.getTypeID()==23) {
+							updateBlock(i, chunkList, w, dataMap, chunks, cmChunks, true);					
+						}
+						
+						// if a bed was moved, check to see if any spawn points need to be updated
+						if(i.getTypeID()==26) {
+							Iterator<Player> iter=unupdatedPlayers.iterator();
+							while (iter.hasNext()) {
+								Player p=iter.next();
+							
+								if(p!=null) {
+									if(p.getBedSpawnLocation()!=null) {
+										MovecraftLocation spawnLoc=MathUtils.bukkit2MovecraftLoc( p.getBedSpawnLocation() );
+										
+										// is the spawn point within 1 block of where the bed used to be?
+										boolean foundSpawn=false;
+										if(i.getOldBlockLocation().getX()-spawnLoc.getX()<=1 && i.getOldBlockLocation().getX()-spawnLoc.getX()>=-1) {
+											if(i.getOldBlockLocation().getZ()-spawnLoc.getZ()<=1 && i.getOldBlockLocation().getZ()-spawnLoc.getZ()>=-1) {
+												foundSpawn=true;
+											}
+										}
+										
+										if(foundSpawn) {
+											Location newSpawnLoc = new Location( w, i.getNewBlockLocation().getX(), i.getNewBlockLocation().getY(), i.getNewBlockLocation().getZ() );
+											p.setBedSpawnLocation(newSpawnLoc, true);
+											iter.remove();
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 
@@ -340,14 +383,17 @@ public class MapUpdateManager extends BukkitRunnable {
 						}
 					}
 					
-					// and set all crafts that were updated to not processing
+					// and set all crafts that were updated to not processing, and move any spawn points that were on a block that was moved
 					for ( MapUpdateCommand c : updatesInWorld ) {
-						Craft craft=c.getCraft();
-						if(craft!=null) {
-							if(!craft.isNotProcessing()) {
-								craft.setProcessing(false);
+						if(c!=null) {
+							Craft craft=c.getCraft();
+							if(craft!=null) {
+								if(!craft.isNotProcessing()) {
+									craft.setProcessing(false);
+								}
 							}
-						}
+
+						}						
 					}
 				}
 				
@@ -434,10 +480,15 @@ public class MapUpdateManager extends BukkitRunnable {
 
 		switch ( s.getTypeId() ) {
 			case 23:
+			case 54:
 			case 61:
 			case 62:
 			case 117:
 				// Data and Inventory
+				if(( ( InventoryHolder ) s ).getInventory().getSize()==54) {
+					Movecraft.getInstance().getLogger().log( Level.SEVERE, "ERROR: Double chest detected. This is not supported." );
+					throw new IllegalArgumentException("INVALID BLOCK");
+				}
 				ItemStack[] contents = ( ( InventoryHolder ) s ).getInventory().getContents().clone();
 				( ( InventoryHolder ) s ).getInventory().clear();
 				return new InventoryTransferHolder( data, contents );

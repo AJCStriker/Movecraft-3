@@ -17,6 +17,7 @@
 
 package net.countercraft.movecraft.async.rotation;
 
+import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.async.AsyncTask;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.localisation.I18nSupport;
@@ -42,6 +43,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import org.bukkit.Material;
 
 public class RotationTask extends AsyncTask {
 	private final MovecraftLocation originPoint;
@@ -163,6 +165,17 @@ public class RotationTask extends AsyncTask {
 
 			blockList[i] = MathUtils.rotateVec( rotation, centeredBlockList[i] ).add( originPoint );
 			int typeID = w.getBlockTypeIdAt( blockList[i].getX(), blockList[i].getY(), blockList[i].getZ() );
+            
+            Material testMaterial = w.getBlockAt(originalBlockList[i].getX(), originalBlockList[i].getY(), originalBlockList[i].getZ()).getType();
+                    
+            if (testMaterial.equals(Material.CHEST) || testMaterial.equals(Material.TRAPPED_CHEST)){
+               if (!checkChests(testMaterial, blockList[i], existingBlockSet)){
+                    //prevent chests collision
+                    failed = true;
+					failMessage = String.format( I18nSupport.getInternationalisedString( "Rotation - Craft is obstructed" ) );
+                    break;
+                }
+            }
 
 			if (!waterCraft) {
 				if ( (typeID != 0 && typeID!=34) && !existingBlockSet.contains( blockList[i] ) ) {
@@ -190,6 +203,19 @@ public class RotationTask extends AsyncTask {
 		if ( !failed ) {
 			//rotate entities in the craft
 			Location tOP = new Location( getCraft().getW(), originPoint.getX(), originPoint.getY(), originPoint.getZ() );
+			
+			List<Entity> eList=null;
+			int numTries=0;
+			
+			while((eList==null)&&(numTries<100)) {
+				try {
+					eList=getCraft().getW().getEntities();
+				}
+				catch(java.util.ConcurrentModificationException e)
+				{
+					numTries++;
+				}
+			}
 			Iterator<Entity> i=getCraft().getW().getEntities().iterator();
 			while (i.hasNext()) {
 				Entity pTest=i.next();
@@ -232,6 +258,22 @@ public class RotationTask extends AsyncTask {
 				}
 
 			}
+			
+/*			//update player spawn locations if they spawned where the ship used to be
+			for(Player p : Movecraft.getInstance().getServer().getOnlinePlayers()) {
+				if(p.getBedSpawnLocation()!=null) {
+					if( MathUtils.playerIsWithinBoundingPolygon( getCraft().getHitBox(), getCraft().getMinX(), getCraft().getMinZ(), MathUtils.bukkit2MovecraftLoc( p.getBedSpawnLocation() ) ) ) {
+						Location spawnLoc = p.getBedSpawnLocation();
+						Location adjustedPLoc = spawnLoc.subtract( tOP ); 
+
+						double[] rotatedCoords = MathUtils.rotateVecNoRound( rotation, adjustedPLoc.getX(), adjustedPLoc.getZ() );
+						Location rotatedPloc = new Location( getCraft().getW(), rotatedCoords[0], spawnLoc.getY(), rotatedCoords[1] );
+						Location newBedSpawn = rotatedPloc.add( tOP );
+
+						p.setBedSpawnLocation(newBedSpawn, true);
+					}
+				}
+			}*/
 			
 			// Calculate air changes
 			List<MovecraftLocation> airLocation = ListUtils.subtract( Arrays.asList( originalBlockList ), Arrays.asList( blockList ) );
@@ -356,5 +398,42 @@ public class RotationTask extends AsyncTask {
 	public Rotation getRotation() {
 		return rotation;
 	}
-
+    
+    private boolean checkChests(Material mBlock, MovecraftLocation newLoc, HashSet<MovecraftLocation> existingBlockSet){
+        Material testMaterial;
+        MovecraftLocation aroundNewLoc;
+        
+        aroundNewLoc = newLoc.translate( 1, 0, 0);
+        testMaterial = getCraft().getW().getBlockAt( aroundNewLoc.getX(), aroundNewLoc.getY(), aroundNewLoc.getZ()).getType();
+        if (testMaterial.equals(mBlock)){
+            if (!existingBlockSet.contains(aroundNewLoc)){
+                return false;
+            }
+        }
+        
+        aroundNewLoc = newLoc.translate( -1, 0, 0);
+        testMaterial = getCraft().getW().getBlockAt( aroundNewLoc.getX(), aroundNewLoc.getY(), aroundNewLoc.getZ()).getType();
+        if (testMaterial.equals(mBlock)){
+            if (!existingBlockSet.contains(aroundNewLoc)){
+                return false;
+            }
+        }
+        
+        aroundNewLoc = newLoc.translate( 0, 0, 1);
+        testMaterial = getCraft().getW().getBlockAt( aroundNewLoc.getX(), aroundNewLoc.getY(), aroundNewLoc.getZ()).getType();
+        if (testMaterial.equals(mBlock)){
+            if (!existingBlockSet.contains(aroundNewLoc)){
+                return false;
+            }
+        }
+        
+        aroundNewLoc = newLoc.translate( 0, 0, -1);
+        testMaterial = getCraft().getW().getBlockAt( aroundNewLoc.getX(), aroundNewLoc.getY(), aroundNewLoc.getZ()).getType();
+        if (testMaterial.equals(mBlock)){
+            if (!existingBlockSet.contains(aroundNewLoc)){
+                return false;
+            }
+        }
+        return true; 
+    }
 }

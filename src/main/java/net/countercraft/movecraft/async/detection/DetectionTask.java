@@ -94,7 +94,44 @@ public class DetectionTask extends AsyncTask {
 				fail( String.format( I18nSupport.getInternationalisedString( "Detection - Forbidden block found" ) ) );
 
 			} else if ( isAllowedBlock( testID ) ) {
-
+				//check for double chests
+				if (testID==54) {
+					boolean foundDoubleChest=false;
+					if(data.getWorld().getBlockTypeIdAt( x-1, y, z )==54) {
+						foundDoubleChest=true;
+					}
+					if(data.getWorld().getBlockTypeIdAt( x+1, y, z )==54) {
+						foundDoubleChest=true;
+					}
+					if(data.getWorld().getBlockTypeIdAt( x, y, z-1 )==54) {
+						foundDoubleChest=true;
+					}
+					if(data.getWorld().getBlockTypeIdAt( x, y, z+1 )==54) {
+						foundDoubleChest=true;
+					}
+                    if(foundDoubleChest) {
+						fail( String.format( I18nSupport.getInternationalisedString( "Detection - ERROR: Double chest found" ) ) );						
+					}
+				}
+                //check for double trapped chests
+				if (testID==146) {
+					boolean foundDoubleChest=false;
+					if(data.getWorld().getBlockTypeIdAt( x-1, y, z )==146) {
+						foundDoubleChest=true;
+					}
+					if(data.getWorld().getBlockTypeIdAt( x+1, y, z )==146) {
+						foundDoubleChest=true;
+					}
+					if(data.getWorld().getBlockTypeIdAt( x, y, z-1 )==146) {
+						foundDoubleChest=true;
+					}
+					if(data.getWorld().getBlockTypeIdAt( x, y, z+1 )==146) {
+						foundDoubleChest=true;
+					}
+                    if(foundDoubleChest) {
+						fail( String.format( I18nSupport.getInternationalisedString( "Detection - ERROR: Double chest found" ) ) );						
+					}
+				}
 				addToBlockList( workingLocation );
 				addToBlockCount( testID );
 
