@@ -66,13 +66,12 @@ public class TranslationTask extends AsyncTask {
 		int hoverLimit = getCraft().getType().getHoverLimit();
 		// Find the waterline from the surrounding terrain or from the static level in the craft type
 		int waterLine=0;
-        int minY=65535;
+        	int minY=65535;
         
 		if (waterCraft || hoverCraft) {
 			int [][][] hb=getCraft().getHitBox();
 
 			// start by finding the minimum and maximum y coord
-			//int minY=65535;
 			int maxY=-65535;
 			for (int [][] i1 : hb) {
 				for (int [] i2 : i1) {
@@ -86,78 +85,78 @@ public class TranslationTask extends AsyncTask {
 					}
 				}
 			}
-            int maxX=getCraft().getMinX()+hb.length;
+            		int maxX=getCraft().getMinX()+hb.length;
 			int maxZ=getCraft().getMinZ()+hb[0].length;  // safe because if the first x array doesn't have a z array, then it wouldn't be the first x array
 			int minX=getCraft().getMinX();
 			int minZ=getCraft().getMinZ();
             
-            if (waterCraft){	
-                if(getCraft().getType().getStaticWaterLevel()!=0) {
-                    if(waterLine<=maxY+1) {
-                        waterLine=getCraft().getType().getStaticWaterLevel();
-                    }
-                } else {
-                    // figure out the water level by examining blocks next to the outer boundaries of the craft
-                    for(int posY=maxY+1; (posY>=minY-1)&&(waterLine==0); posY--) {
-                        int posX;
-                        int posZ;
-                        posZ=minZ-1;
-                        for(posX=minX-1; (posX <= maxX+1)&&(waterLine==0); posX++ ) {
-                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
-                                waterLine=posY;
-                            }
-                        }
-                        posZ=maxZ+1;
-                        for(posX=minX-1; (posX <= maxX+1)&&(waterLine==0); posX++ ) {
-                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
-                                waterLine=posY;
-                            }
-                        }
-                        posX=minX-1;
-                        for(posZ=minZ; (posZ <= maxZ)&&(waterLine==0); posZ++ ) {
-                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
-                                waterLine=posY;
-                            }
-                        }
-                        posX=maxX+1;
-                        for(posZ=minZ; (posZ <= maxZ)&&(waterLine==0); posZ++ ) {
-                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
-                                waterLine=posY;
-                            }
-                        }
-                    }				
-                }
-
-                // now add all the air blocks found within the craft's hitbox immediately above the waterline and below to the craft blocks so they will be translated
-                HashSet<MovecraftLocation> newHSBlockList=new HashSet<MovecraftLocation>(Arrays.asList(blocksList));
-                int posY=waterLine+1;
-                for(int posX=minX; posX<maxX; posX++) {
-                    for(int posZ=minZ; posZ<maxZ; posZ++) {
-                        if(hb[posX-minX]!=null) {
-                            if(hb[posX-minX][posZ-minZ]!=null) {
-                                if(getCraft().getW().getBlockAt(posX,posY,posZ).getTypeId()==0 && posY>hb[posX-minX][posZ-minZ][0] && posY<hb[posX-minX][posZ-minZ][1]) {
-                                    MovecraftLocation l=new MovecraftLocation(posX,posY,posZ);
-                                    newHSBlockList.add(l);
-                                }
-                            }
-                        }
-                    }
-                }
-                // dont check the hitbox for the underwater portion. Otherwise open-hulled ships would flood.
-                for(posY=waterLine; posY>=minY; posY--) {
-                    for(int posX=minX; posX<maxX; posX++) {
-                        for(int posZ=minZ; posZ<maxZ; posZ++) {
-                            if(getCraft().getW().getBlockAt(posX,posY,posZ).getTypeId()==0) {
-                                MovecraftLocation l=new MovecraftLocation(posX,posY,posZ);
-                                newHSBlockList.add(l);
-                            }
-                        }
-                    }
-                }
-
-                blocksList=newHSBlockList.toArray(new MovecraftLocation[newHSBlockList.size()]);
-            }
-        }
+	            if (waterCraft){	
+	                if(getCraft().getType().getStaticWaterLevel()!=0) {
+	                    if(waterLine<=maxY+1) {
+	                        waterLine=getCraft().getType().getStaticWaterLevel();
+	                    }
+	                } else {
+	                    // figure out the water level by examining blocks next to the outer boundaries of the craft
+	                    for(int posY=maxY+1; (posY>=minY-1)&&(waterLine==0); posY--) {
+	                        int posX;
+	                        int posZ;
+	                        posZ=minZ-1;
+	                        for(posX=minX-1; (posX <= maxX+1)&&(waterLine==0); posX++ ) {
+	                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
+	                                waterLine=posY;
+	                            }
+	                        }
+	                        posZ=maxZ+1;
+	                        for(posX=minX-1; (posX <= maxX+1)&&(waterLine==0); posX++ ) {
+	                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
+	                                waterLine=posY;
+	                            }
+	                        }
+	                        posX=minX-1;
+	                        for(posZ=minZ; (posZ <= maxZ)&&(waterLine==0); posZ++ ) {
+	                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
+	                                waterLine=posY;
+	                            }
+	                        }
+	                        posX=maxX+1;
+	                        for(posZ=minZ; (posZ <= maxZ)&&(waterLine==0); posZ++ ) {
+	                            if(getCraft().getW().getBlockAt(posX, posY, posZ).getTypeId()==9) {
+	                                waterLine=posY;
+	                            }
+	                        }
+	                    }				
+	                }
+	
+	                // now add all the air blocks found within the craft's hitbox immediately above the waterline and below to the craft blocks so they will be translated
+	                HashSet<MovecraftLocation> newHSBlockList=new HashSet<MovecraftLocation>(Arrays.asList(blocksList));
+	                int posY=waterLine+1;
+	                for(int posX=minX; posX<maxX; posX++) {
+	                    for(int posZ=minZ; posZ<maxZ; posZ++) {
+	                        if(hb[posX-minX]!=null) {
+	                            if(hb[posX-minX][posZ-minZ]!=null) {
+	                                if(getCraft().getW().getBlockAt(posX,posY,posZ).getTypeId()==0 && posY>hb[posX-minX][posZ-minZ][0] && posY<hb[posX-minX][posZ-minZ][1]) {
+	                                    MovecraftLocation l=new MovecraftLocation(posX,posY,posZ);
+	                                    newHSBlockList.add(l);
+	                                }
+	                            }
+	                        }
+	                    }
+	                }
+	                // dont check the hitbox for the underwater portion. Otherwise open-hulled ships would flood.
+	                for(posY=waterLine; posY>=minY; posY--) {
+	                    for(int posX=minX; posX<maxX; posX++) {
+	                        for(int posZ=minZ; posZ<maxZ; posZ++) {
+	                            if(getCraft().getW().getBlockAt(posX,posY,posZ).getTypeId()==0) {
+	                                MovecraftLocation l=new MovecraftLocation(posX,posY,posZ);
+	                                newHSBlockList.add(l);
+	                            }
+	                        }
+	                    }
+	                }
+	
+	                blocksList=newHSBlockList.toArray(new MovecraftLocation[newHSBlockList.size()]);
+	            }
+        	}
 		// check for fuel, burn some from a furnace if needed. Blocks of coal are supported, in addition to coal and charcoal
 		double fuelBurnRate=getCraft().getType().getFuelBurnRate();
 		if(fuelBurnRate!=0.0) {
@@ -284,21 +283,15 @@ public class TranslationTask extends AsyncTask {
 				 	//we check one up ever, if it is hovercraft and one down if it's using gravity
 				 	if (hoverOver == 0 && newLoc.getY() + 1 <= data.getMaxHeight() && oldLoc.getY() == minY  ){
 				 		//first was checked actual level, now check if we can go up
-                        hoverOver = 1;
+                        			hoverOver = 1;
 				 		data.setDy(1); 
 				 		clearNewData = true;
 				 	} else if (hoverOver >= 1){ 
 				 		//check other options to go up
-				 		if (
-                            hoverOver < hoverLimit + 1 
-                            && 
-                            newLoc.getY() + 1 <= data.getMaxHeight() 
-                            && 
-                            oldLoc.getY() == minY 
-                        ){
-                            data.setDy(hoverOver + 1);
-                            hoverOver += 1;
-                            clearNewData = true;
+				 		if ( hoverOver < hoverLimit + 1  && newLoc.getY() + 1 <= data.getMaxHeight() && oldLoc.getY() == minY ){
+                            				data.setDy(hoverOver + 1);
+                            				hoverOver += 1;
+                            				clearNewData = true;
 				 		}else{
 					 		if (hoverUseGravity && newLoc.getY() - hoverOver -1 >= data.getMinHeight()){
 					 			//we are on the maximum of top 
