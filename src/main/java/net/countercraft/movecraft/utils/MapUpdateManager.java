@@ -27,8 +27,8 @@ import net.countercraft.movecraft.utils.datastructures.InventoryTransferHolder;
 import net.countercraft.movecraft.utils.datastructures.SignTransferHolder;
 import net.countercraft.movecraft.utils.datastructures.StorageCrateTransferHolder;
 import net.countercraft.movecraft.utils.datastructures.TransferData;
-import net.minecraft.server.v1_7_R1.ChunkCoordIntPair;
-import net.minecraft.server.v1_7_R1.Material;
+import net.minecraft.server.v1_7_R2.ChunkCoordIntPair;
+import net.minecraft.server.v1_7_R2.Material;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -36,9 +36,9 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
-import org.bukkit.craftbukkit.v1_7_R1.CraftChunk;
-import org.bukkit.craftbukkit.v1_7_R1.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_7_R1.util.CraftMagicNumbers;
+import org.bukkit.craftbukkit.v1_7_R2.CraftChunk;
+import org.bukkit.craftbukkit.v1_7_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_7_R2.util.CraftMagicNumbers;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -66,7 +66,7 @@ public class MapUpdateManager extends BukkitRunnable {
 		private static final MapUpdateManager INSTANCE = new MapUpdateManager();
 	}
 	
-	private void updateBlock(MapUpdateCommand m, ArrayList<Chunk> chunkList, World w, Map<MovecraftLocation, TransferData> dataMap, Set<net.minecraft.server.v1_7_R1.Chunk> chunks, Set<Chunk> cmChunks, boolean placeDispensers) {
+	private void updateBlock(MapUpdateCommand m, ArrayList<Chunk> chunkList, World w, Map<MovecraftLocation, TransferData> dataMap, Set<net.minecraft.server.v1_7_R2.Chunk> chunks, Set<Chunk> cmChunks, boolean placeDispensers) {
 		MovecraftLocation workingL = m.getNewBlockLocation();
 
 		int x = workingL.getX();
@@ -90,7 +90,7 @@ public class MapUpdateManager extends BukkitRunnable {
 			chunkList.add(chunk);							
 		}
 
-		net.minecraft.server.v1_7_R1.Chunk c = null;
+		net.minecraft.server.v1_7_R2.Chunk c = null;
 		Chunk cmC = null;
 		if(Settings.CompatibilityMode) {
 			cmC = chunk;
@@ -119,7 +119,7 @@ public class MapUpdateManager extends BukkitRunnable {
 		boolean success = false;
 
 		//don't blank out block if it's already air, or if blocktype will not be changed
-		if(Settings.CompatibilityMode) {
+		if(Settings.CompatibilityMode) {  
 			if((origType!=0)&&(origType!=newTypeID)) {
 				w.getBlockAt( x, y, z ).setTypeIdAndData( 0, (byte) 0, false );
 			}
@@ -130,19 +130,24 @@ public class MapUpdateManager extends BukkitRunnable {
 				cmChunks.add( cmC );
 			}
 		} else {
-			if((origType!=0)&&(origType!=newTypeID)) {
-				c.a( x & 15, y, z & 15, CraftMagicNumbers.getBlock(0), 0 );
-			} 
-			if(origType!=newTypeID || origData!=data) {
-				success = c.a( x & 15, y, z & 15, CraftMagicNumbers.getBlock(newTypeID), data );
-			} else {
-				success=true;
-			}
-			if ( !success ) {
+			if(newTypeID==149 || newTypeID==150) { // have to use slower calls for comparators for some reason
+				w.getBlockAt( x, y, z ).setTypeIdAndData( 0, (byte) 0, false );
 				w.getBlockAt( x, y, z ).setTypeIdAndData( newTypeID, data, false );
-			}
-			if ( !chunks.contains( c ) ) {
-				chunks.add( c );
+			} else {
+				if((origType!=0)&&(origType!=newTypeID)) {
+					c.a( x & 15, y, z & 15, CraftMagicNumbers.getBlock(0), 0 );
+				} 
+				if(origType!=newTypeID || origData!=data) {
+					success = c.a( x & 15, y, z & 15, CraftMagicNumbers.getBlock(newTypeID), data );
+				} else {
+					success=true;
+				}
+				if ( !success ) {
+					w.getBlockAt( x, y, z ).setTypeIdAndData( newTypeID, data, false );
+				}
+				if ( !chunks.contains( c ) ) {
+					chunks.add( c );
+				}
 			}
 		}						
 
@@ -158,12 +163,12 @@ public class MapUpdateManager extends BukkitRunnable {
 				List<EntityUpdateCommand> entityUpdatesInWorld = entityUpdates.get( w );
 				Map<MovecraftLocation, List<EntityUpdateCommand>> entityMap = new HashMap<MovecraftLocation, List<EntityUpdateCommand>>();
 				Map<MovecraftLocation, TransferData> dataMap = new HashMap<MovecraftLocation, TransferData>();
-				Set<net.minecraft.server.v1_7_R1.Chunk> chunks = null; 
+				Set<net.minecraft.server.v1_7_R2.Chunk> chunks = null; 
 				Set<Chunk> cmChunks = null;
 				if(Settings.CompatibilityMode) {
 					cmChunks = new HashSet<Chunk>();					
 				} else {
-					chunks = new HashSet<net.minecraft.server.v1_7_R1.Chunk>();
+					chunks = new HashSet<net.minecraft.server.v1_7_R2.Chunk>();
 				}
 				ArrayList<Player> unupdatedPlayers=new ArrayList<Player>(Arrays.asList(Movecraft.getInstance().getServer().getOnlinePlayers()));
 
@@ -210,6 +215,20 @@ public class MapUpdateManager extends BukkitRunnable {
 				final int[] fragileBlocks = new int[]{ 26, 29, 33, 34, 50, 52, 54, 55, 63, 64, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 323, 324, 330, 331, 356, 404 };
 				Arrays.sort(fragileBlocks);
 						
+			/*	// place blocks that will have entities standing on them, and the 2 blocks above it
+				for ( MapUpdateCommand m : updatesInWorld ) {
+					if(m!=null) {
+						MovecraftLocation oneDown=new MovecraftLocation(m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY()-1, m.getNewBlockLocation().getZ());
+						MovecraftLocation twoDown=new MovecraftLocation(m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY()-2, m.getNewBlockLocation().getZ());
+						if( entityMap.containsKey(m.getNewBlockLocation()) || entityMap.containsKey(oneDown) || entityMap.containsKey(twoDown)) {
+							w.getBlockAt( m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY(), m.getNewBlockLocation().getZ() ).setTypeIdAndData( 0, (byte) 0, false );
+							w.getBlockAt( m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY(), m.getNewBlockLocation().getZ() ).setTypeIdAndData( 20, (byte) 0, false );
+							w.getBlockAt( m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY()+1, m.getNewBlockLocation().getZ() ).setTypeIdAndData( 0, (byte) 0, false );
+							w.getBlockAt( m.getNewBlockLocation().getX(), m.getNewBlockLocation().getY()+2, m.getNewBlockLocation().getZ() ).setTypeIdAndData( 0, (byte) 0, false );
+							}
+					}
+				}*/
+				
 				// Perform core block updates, don't do "fragiles" yet. Don't do Dispensers yet either
 				for ( MapUpdateCommand m : updatesInWorld ) {
 					if(m!=null) {
@@ -232,19 +251,11 @@ public class MapUpdateManager extends BukkitRunnable {
 							for(EntityUpdateCommand entityUpdate : mapUpdateList) {
 								Entity entity=entityUpdate.getEntity();
 								Vector pVel=new Vector(entity.getVelocity().getX(),0.0,entity.getVelocity().getZ());
-								if( pVel.getX()==0.0 && entity.getVelocity().getZ()==0.0 ) {
-									Location newLoc=entityUpdate.getNewLocation();
-									
-									// if they have gone through the floor, move them up one block
-									double decimalY=newLoc.getY()-Math.floor(newLoc.getY());
-									if(decimalY>0.40) {
-										newLoc.setY( Math.ceil( newLoc.getY() ) );
-									}
-									entity.teleport(entityUpdate.getNewLocation());
-								} else {
-									Location craftMove=entityUpdate.getNewLocation().subtract(entityUpdate.getOldLocation());
-									entity.teleport(entity.getLocation().add(craftMove));
-								}
+							/*	Location newLoc=entity.getLocation();
+								newLoc.setX(entityUpdate.getNewLocation().getX());
+								newLoc.setY(entityUpdate.getNewLocation().getY());
+								newLoc.setZ(entityUpdate.getNewLocation().getZ());*/
+								entity.teleport(entityUpdate.getNewLocation());
 								entity.setVelocity(pVel);
 							}
 							entityMap.remove(m.getNewBlockLocation());
@@ -338,7 +349,7 @@ public class MapUpdateManager extends BukkitRunnable {
 				if(Settings.CompatibilityMode) {
 					// todo: lighting stuff here
 				} else {
-					for ( net.minecraft.server.v1_7_R1.Chunk c : chunks ) {
+					for ( net.minecraft.server.v1_7_R2.Chunk c : chunks ) {
 						c.initLighting();
 						ChunkCoordIntPair ccip = new ChunkCoordIntPair( c.locX, c.locZ ); // changed from c.x to c.locX and c.locZ
 
@@ -382,7 +393,24 @@ public class MapUpdateManager extends BukkitRunnable {
 						}
 					}
 					
-					// and set all crafts that were updated to not processing, and move any spawn points that were on a block that was moved
+					//move entities again to reduce falling out of crafts
+					if(entityUpdatesInWorld!=null) {
+						for(EntityUpdateCommand entityUpdate : entityUpdatesInWorld) {
+							if(entityUpdate!=null) {
+								Entity entity=entityUpdate.getEntity();
+								Vector pVel=new Vector(entity.getVelocity().getX(),0.0,entity.getVelocity().getZ());
+								
+							/*	Location newLoc=entity.getLocation();
+								newLoc.setX(entityUpdate.getNewLocation().getX());
+								newLoc.setY(entityUpdate.getNewLocation().getY());
+								newLoc.setZ(entityUpdate.getNewLocation().getZ());*/
+								entity.teleport(entityUpdate.getNewLocation());
+								entity.setVelocity(pVel);
+							}
+						}
+					}
+
+					// and set all crafts that were updated to not processing
 					for ( MapUpdateCommand c : updatesInWorld ) {
 						if(c!=null) {
 							Craft craft=c.getCraft();
