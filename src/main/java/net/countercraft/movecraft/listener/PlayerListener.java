@@ -22,6 +22,7 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.MathUtils;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -63,7 +64,7 @@ public class PlayerListener implements Listener {
 		if ( c != null ) {
 			if ( !MathUtils.playerIsWithinBoundingPolygon( c.getHitBox(), c.getMinX(), c.getMinZ(), MathUtils.bukkit2MovecraftLoc( event.getPlayer().getLocation() ) ) ) {
 
-				if ( !CraftManager.getInstance().getReleaseEvents().containsKey( event.getPlayer() ) ) {
+				if ( !CraftManager.getInstance().getReleaseEvents().containsKey( event.getPlayer() ) && c.getType().getMoveEntities()) {
 					event.getPlayer().sendMessage( String.format( I18nSupport.getInternationalisedString( "Release - Player has left craft" ) ) );
 
 					BukkitTask releaseTask = new BukkitRunnable() {
@@ -77,9 +78,10 @@ public class PlayerListener implements Listener {
 
 					CraftManager.getInstance().getReleaseEvents().put( event.getPlayer(), releaseTask );
 				}
-
-			} else if ( CraftManager.getInstance().getReleaseEvents().containsKey(event.getPlayer()) && c.getType().getMoveEntities()) {
-				CraftManager.getInstance().removeReleaseTask(c);
+			} else {
+				if ( CraftManager.getInstance().getReleaseEvents().containsKey(event.getPlayer()) && c.getType().getMoveEntities()) {
+					CraftManager.getInstance().removeReleaseTask(c);
+				}
 			}
 		}
 	}

@@ -22,6 +22,7 @@ import net.countercraft.movecraft.async.detection.DetectionTask;
 import net.countercraft.movecraft.async.detection.DetectionTaskData;
 import net.countercraft.movecraft.async.rotation.RotationTask;
 import net.countercraft.movecraft.async.translation.TranslationTask;
+import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
@@ -57,9 +58,9 @@ public class AsyncManager extends BukkitRunnable {
 	private final HashMap<AsyncTask, Craft> ownershipMap = new HashMap<AsyncTask, Craft>();
 	private final BlockingQueue<AsyncTask> finishedAlgorithms = new LinkedBlockingQueue<AsyncTask>();
 	private final HashSet<Craft> clearanceSet = new HashSet<Craft>();
-	private final HashMap<World, ArrayList<MovecraftLocation>> sinkingBlocks = new HashMap<World, ArrayList<MovecraftLocation>>();
-	private final HashMap<World, HashSet<MovecraftLocation>> waterFillBlocks = new HashMap<World, HashSet<MovecraftLocation>>();
-	private long lastSinkingUpdate = 0;
+//	private final HashMap<World, ArrayList<MovecraftLocation>> sinkingBlocks = new HashMap<World, ArrayList<MovecraftLocation>>();
+//	private final HashMap<World, HashSet<MovecraftLocation>> waterFillBlocks = new HashMap<World, HashSet<MovecraftLocation>>();
+//	private long lastSinkingUpdate = 0;
 
 	public static AsyncManager getInstance() {
 		return instance;
@@ -97,15 +98,19 @@ public class AsyncManager extends BukkitRunnable {
 				DetectionTask task = ( DetectionTask ) poll;
 				DetectionTaskData data = task.getData();
 
-				Player p = Movecraft.getInstance().getServer().getPlayer( data.getPlayername() );
+				Player p = data.getPlayer();
 				Craft pCraft = CraftManager.getInstance().getCraftByPlayer( p );
 
-				if ( pCraft != null ) {
+				if ( pCraft != null && p != null ) {
 					//Player is already controlling a craft
 					p.sendMessage( String.format( I18nSupport.getInternationalisedString( "Detection - Failed - Already commanding a craft" ) ) );
 				} else {
 					if ( data.failed() ) {
-						Movecraft.getInstance().getServer().getPlayer( data.getPlayername() ).sendMessage( data.getFailMessage() );
+						if(p!=null)
+							p.sendMessage( data.getFailMessage() );
+						else
+							Movecraft.getInstance().getLogger().log( Level.INFO,"NULL Player Craft Detection failed:"+data.getFailMessage());
+
 					} else {
 						Craft[] craftsInWorld = CraftManager.getInstance().getCraftsInWorld( c.getW() );
 						boolean failed = false;
@@ -113,8 +118,8 @@ public class AsyncManager extends BukkitRunnable {
 						if ( craftsInWorld != null ) {
 							for ( Craft craft : craftsInWorld ) {
 
-								if ( BlockUtils.arrayContainsOverlap( craft.getBlockList(), data.getBlockList() ) ) {
-									Movecraft.getInstance().getServer().getPlayer( data.getPlayername() ).sendMessage( String.format( I18nSupport.getInternationalisedString( "Detection - Failed Craft is already being controlled" ) ) );
+								if ( BlockUtils.arrayContainsOverlap( craft.getBlockList(), data.getBlockList() ) && p!=null ) {
+									p.sendMessage( String.format( I18nSupport.getInternationalisedString( "Detection - Failed Craft is already being controlled" ) ) );
 									failed = true;
 								}
 
@@ -125,10 +130,13 @@ public class AsyncManager extends BukkitRunnable {
 							c.setHitBox( data.getHitBox() );
 							c.setMinX( data.getMinX() );
 							c.setMinZ( data.getMinZ() );
-
-							Movecraft.getInstance().getServer().getPlayer( data.getPlayername() ).sendMessage( String.format( I18nSupport.getInternationalisedString( "Detection - Successfully piloted craft" ) ) );
-							Movecraft.getInstance().getLogger().log( Level.INFO, String.format( I18nSupport.getInternationalisedString( "Detection - Success - Log Output" ), p.getName(), c.getType().getCraftName(), c.getBlockList().length, c.getMinX(), c.getMinZ() ) );
-							CraftManager.getInstance().addCraft( c, Movecraft.getInstance().getServer().getPlayer( data.getPlayername() ) );
+							if(p!=null) {
+								p.sendMessage( String.format( I18nSupport.getInternationalisedString( "Detection - Successfully piloted craft" ) ) );
+								Movecraft.getInstance().getLogger().log( Level.INFO, String.format( I18nSupport.getInternationalisedString( "Detection - Success - Log Output" ), p.getName(), c.getType().getCraftName(), c.getBlockList().length, c.getMinX(), c.getMinZ() ) );
+							} else {
+								Movecraft.getInstance().getLogger().log( Level.INFO, String.format( I18nSupport.getInternationalisedString( "Detection - Success - Log Output" ), "NULL PLAYER", c.getType().getCraftName(), c.getBlockList().length, c.getMinX(), c.getMinZ() ) );								
+							}
+							CraftManager.getInstance().addCraft( c, p );
 						}
 					}
 				}
@@ -141,11 +149,14 @@ public class AsyncManager extends BukkitRunnable {
 				Player p = CraftManager.getInstance().getPlayerFromCraft( c );
 
 				// Check that the craft hasn't been sneakily unpiloted
-				if ( p != null ) {
+		//		if ( p != null ) {     cruiseOnPilot crafts don't have player pilots
 
 					if ( task.getData().failed() ) {
 						//The craft translation failed
-						p.sendMessage( task.getData().getFailMessage() );
+						if( p != null )
+							p.sendMessage( task.getData().getFailMessage() );
+						else
+							
 						if(task.getData().collisionExplosion()) {
 							MapUpdateCommand[] updates = task.getData().getUpdates();
 							c.setBlockList( task.getData().getBlockList() );
@@ -181,7 +192,7 @@ public class AsyncManager extends BukkitRunnable {
 						}
 					}
 
-				}
+	//			}
 
 
 			} else if ( poll instanceof RotationTask ) {
@@ -190,11 +201,14 @@ public class AsyncManager extends BukkitRunnable {
 				Player p = CraftManager.getInstance().getPlayerFromCraft( c );
 
 				// Check that the craft hasn't been sneakily unpiloted
-				if ( p != null ) {
+				if ( p != null || task.getIsSubCraft()) {
 
 					if ( task.isFailed() ) {
-						//The craft translation failed
-						p.sendMessage( task.getFailMessage() );
+						//The craft translation failed, don't try to notify them if there is no pilot
+						if(p!=null)
+							p.sendMessage( task.getFailMessage() );
+						else
+							Movecraft.getInstance().getLogger().log( Level.INFO,"NULL Player Rotation Failed: "+task.getFailMessage());
 					} else {
 						MapUpdateCommand[] updates = task.getUpdates();
 						EntityUpdateCommand[] eUpdates=task.getEntityUpdates();
@@ -254,11 +268,18 @@ public class AsyncManager extends BukkitRunnable {
 									dz=0-1-pcraft.getType().getCruiseSkipBlocks();
 								}
 								pcraft.translate(dx, 0, dz);
-								pcraft.setLastCruisUpdate(System.currentTimeMillis());
+								pcraft.setLastDX(dx);
+								pcraft.setLastDZ(dz);
+								if(pcraft.getLastCruiseUpdate()!=-1) {
+									pcraft.setLastCruisUpdate(System.currentTimeMillis());
+								} else {
+									pcraft.setLastCruisUpdate(0);									
+								}
 							}
 							
 						} else {
-							if(pcraft.getLastDX()!=0 || pcraft.getLastDY()!=0 || pcraft.getLastDZ()!=0) {
+//							if(pcraft.getLastDX()!=0 || pcraft.getLastDY()!=0 || pcraft.getLastDZ()!=0) {
+							if(pcraft.getKeepMoving()) {
 								long rcticksElapsed = ( System.currentTimeMillis() - pcraft.getLastRightClick() ) / 50;
 								rcticksElapsed=Math.abs(rcticksElapsed);
 								// if they are holding the button down, keep moving
@@ -268,6 +289,49 @@ public class AsyncManager extends BukkitRunnable {
 										pcraft.translate(pcraft.getLastDX(), pcraft.getLastDY(), pcraft.getLastDZ());
 										pcraft.setLastCruisUpdate(System.currentTimeMillis());
 									}
+								}
+							}
+							if(pcraft.getPilotLocked()==true && pcraft.isNotProcessing()) {
+								
+								Player p = CraftManager.getInstance().getPlayerFromCraft( pcraft );
+								if ( MathUtils.playerIsWithinBoundingPolygon( pcraft.getHitBox(), pcraft.getMinX(), pcraft.getMinZ(), MathUtils.bukkit2MovecraftLoc( p.getLocation() ) ) ) {
+									double movedX=p.getLocation().getX()-pcraft.getPilotLockedX();
+									double movedZ=p.getLocation().getZ()-pcraft.getPilotLockedZ();
+									int dX=0;
+									int dZ=0;
+									if(movedX>0.15)
+										dX=1;
+									else if(movedX<-0.15)
+										dX=-1;
+									if(movedZ>0.15)
+										dZ=1;
+									else if(movedZ<-0.15)
+										dZ=-1;
+									if(dX!=0 || dZ!=0) {
+										long timeSinceLastMoveCommand=System.currentTimeMillis()-pcraft.getLastRightClick();
+										// wait before accepting new move commands to help with bouncing. Also ignore extreme movement
+										if(Math.abs(movedX)<0.2 && Math.abs(movedZ)<0.2 && timeSinceLastMoveCommand>300) { 
+
+											pcraft.setLastRightClick(System.currentTimeMillis());
+											long ticksElapsed = ( System.currentTimeMillis() - pcraft.getLastCruiseUpdate() ) / 50;
+											if ( Math.abs( ticksElapsed ) >= pcraft.getType().getTickCooldown() ) {
+												pcraft.translate(dX, 0, dZ);
+												pcraft.setLastCruisUpdate(System.currentTimeMillis());
+											}
+											pcraft.setLastDX(dX);
+											pcraft.setLastDY(0);
+											pcraft.setLastDZ(dZ);
+											pcraft.setKeepMoving(true);
+										} else {
+											Location loc=p.getLocation();
+											loc.setX(pcraft.getPilotLockedX());
+											loc.setY(pcraft.getPilotLockedY());
+											loc.setZ(pcraft.getPilotLockedZ());
+											Vector pVel=new Vector(0.0,0.0,0.0);
+											p.teleport(loc);
+											p.setVelocity(pVel);
+										}
+									} 
 								}
 							}
 						}
@@ -283,35 +347,44 @@ public class AsyncManager extends BukkitRunnable {
 		for( World w : Bukkit.getWorlds()) {
 			if(w!=null && CraftManager.getInstance().getCraftsInWorld(w)!=null) {
 
-				// check every 5 seconds for every craft to see if it should be sinking
+				// check every few seconds for every craft to see if it should be sinking
 				for (Craft pcraft : CraftManager.getInstance().getCraftsInWorld(w)) {
-					if(pcraft!=null) {
+					if(pcraft!=null && pcraft.getSinking()==false) {
 						if( pcraft.getType().getSinkPercent()!=0.0 && pcraft.isNotProcessing()) {
 							long ticksElapsed = ( System.currentTimeMillis() - pcraft.getLastBlockCheck() ) / 50;
 						
-							if(ticksElapsed>100) {
+							if(ticksElapsed>Settings.SinkCheckTicks) {
 								int totalBlocks=0;
-								HashMap<Integer, Integer> foundFlyBlocks = new HashMap<Integer, Integer>();
+								int missingBlocks=0;
+								HashMap<ArrayList<Integer>, Integer> foundFlyBlocks = new HashMap<ArrayList<Integer>, Integer>();
 
 								// go through each block in the blocklist, and if its in the FlyBlocks, total up the number of them
 								for(MovecraftLocation l : pcraft.getBlockList()) {
-									int blockID=w.getBlockAt(l.getX(), l.getY(), l.getZ()).getTypeId();
-									if(pcraft.getType().getFlyBlocks().containsKey(blockID) ) {
-										Integer count=foundFlyBlocks.get(blockID);
-										if(count==null) {
-											foundFlyBlocks.put(blockID, 1);
-										} else {
-											foundFlyBlocks.put(blockID, count+1);
+									Integer blockID=w.getBlockAt(l.getX(), l.getY(), l.getZ()).getTypeId();
+									Integer dataID=(int)w.getBlockAt(l.getX(), l.getY(), l.getZ()).getData();
+									Integer shiftedID=(blockID<<4)+dataID+10000;
+									for(ArrayList<Integer> flyBlockDef : pcraft.getType().getFlyBlocks().keySet()) {
+										if(flyBlockDef.contains(blockID) || flyBlockDef.contains(shiftedID)) {
+											Integer count=foundFlyBlocks.get(flyBlockDef);
+											if(count==null) {
+												foundFlyBlocks.put(flyBlockDef, 1);
+											} else {
+												foundFlyBlocks.put(flyBlockDef, count+1);
+											}
 										}
 									}
-									if(blockID!=0) {   // && blockID!=9 && blockID!=8) {
+									
+									if(blockID!=0) {  
 										totalBlocks++;
+									}
+									if( blockID==0 || blockID==8 || blockID==9 ) {
+										missingBlocks++;
 									}
 								}
 								
 								// now see if any of the resulting percentages are below the threshold specified in SinkPercent
 								boolean isSinking=false;
-								for(int i : pcraft.getType().getFlyBlocks().keySet()) {
+								for(ArrayList<Integer> i : pcraft.getType().getFlyBlocks().keySet()) {
 									int numfound=0;
 									if(foundFlyBlocks.get(i)!=null) {
 										numfound=foundFlyBlocks.get(i);
@@ -324,21 +397,29 @@ public class AsyncManager extends BukkitRunnable {
 									}
 									
 								}
+								
+								// And check the overallsinkpercent
+								if(pcraft.getType().getOverallSinkPercent()!=0.0) {
+									double blocksLeft=totalBlocks-missingBlocks;
+									double percent=blocksLeft/totalBlocks;
+									if(percent*100.0<pcraft.getType().getOverallSinkPercent()) {
+										isSinking=true;
+									}
+								}
+								
 								if(totalBlocks==0) {
 									isSinking=true;
 								}
 								
 								// if the craft is sinking, let the player know and release the craft. Otherwise update the time for the next check
 								if(isSinking) {
-									// add the blocks of the craft to the sinking blocks
-									if(sinkingBlocks.get(w)==null) {
-										ArrayList<MovecraftLocation> t=new ArrayList<MovecraftLocation>();
-										sinkingBlocks.put(w, t);
-									}
-									sinkingBlocks.get(w).addAll(Arrays.asList(pcraft.getBlockList()));
 									Player p = CraftManager.getInstance().getPlayerFromCraft( pcraft );
-									p.sendMessage( String.format( I18nSupport.getInternationalisedString( "Player- Craft is sinking" ) ) );
-									CraftManager.getInstance().removeCraft( pcraft );
+									if(p!=null)
+										p.sendMessage( String.format( I18nSupport.getInternationalisedString( "Player- Craft is sinking" ) ) );
+									pcraft.setCruising(false);
+									pcraft.setKeepMoving(false);
+									pcraft.setSinking(true);
+									CraftManager.getInstance().removePlayerFromCraft(pcraft);
 								} else {
 									pcraft.setLastBlockCheck(System.currentTimeMillis());
 								}
@@ -346,93 +427,26 @@ public class AsyncManager extends BukkitRunnable {
 						}
 					}
 				}
-			}
-		}
-		
-		// sink all the sinkingBlocks every second
-		final int[] fallThroughBlocks = new int[]{ 0, 8, 9, 10, 11, 31, 37, 38, 39, 40, 50, 51, 55, 59, 65, 69, 70, 72, 75, 76, 77, 78, 83, 93, 94, 111, 141, 142, 143, 171};  
-		for( World w : Bukkit.getWorlds()) {
-			if(w!=null) {
-				long ticksElapsed = ( System.currentTimeMillis() - lastSinkingUpdate ) / 50;
-				if(ticksElapsed>=20 && sinkingBlocks.get( w )!=null) {
-					Iterator<MovecraftLocation> sBlocks=sinkingBlocks.get( w ).iterator();
-					HashSet<MovecraftLocation> oldBlockSet = new HashSet<MovecraftLocation>();
-					for(MovecraftLocation l : sinkingBlocks.get( w )) {
-						MovecraftLocation n=new MovecraftLocation(l.getX(),l.getY(),l.getZ());
-						oldBlockSet.add(n);
-					}
-					
-					ArrayList<MapUpdateCommand> updates=new ArrayList<MapUpdateCommand>();
-					while(sBlocks.hasNext()) {
-						MovecraftLocation l=sBlocks.next();
-						MovecraftLocation oldLoc=new MovecraftLocation(l.getX(), l.getY(), l.getZ());
-						MovecraftLocation newLoc=new MovecraftLocation(l.getX(), l.getY()-1, l.getZ());
-						if (l.getY()>0){
-							Block oldBlock=w.getBlockAt(l.getX(), l.getY(), l.getZ());
-							Block newBlock=w.getBlockAt(l.getX(), l.getY()-1, l.getZ());
-							// If the source is air, remove it from processing
-							if(oldBlock.getTypeId()!=0) {
-								
-								// if falling through another falling block, search through all blocks downward to see if they are all on something solid. If so, don't fall
-								MovecraftLocation testLoc=new MovecraftLocation(newLoc.getX(),newLoc.getY(),newLoc.getZ());
-								while(oldBlockSet.contains(testLoc)) {
-									testLoc.setY(testLoc.getY()-1);
-								}
-								
-								Block testBlock=w.getBlockAt(testLoc.getX(), testLoc.getY(), testLoc.getZ());
-								if(Arrays.binarySearch(fallThroughBlocks,testBlock.getTypeId())>=0) {
-									// remember which blocks used to be water, so we can fill it back in later
-									if(newBlock.getTypeId()==9) {
-										if(waterFillBlocks.get( w )==null) {
-											HashSet<MovecraftLocation> newA=new HashSet<MovecraftLocation>();
-											waterFillBlocks.put( w ,newA);
-										}
-										waterFillBlocks.get(w).add(newLoc);
-									}
-									MapUpdateCommand c=new MapUpdateCommand(oldLoc, newLoc, oldBlock.getTypeId(), null);
-									updates.add(c);
-									l.setY(l.getY()-1);
-									} else {
 
-									// if the block below is solid, remove the block from the falling list and the waterfill list. Also remove it from oldblocks, so it doesn't get filled in with air/water
-									waterFillBlocks.remove(l);
-									oldBlockSet.remove(l);
-									sBlocks.remove();
-
-									}
-								
-							} else {
-								// don't process air, waste of time
-//								oldBlockSet.remove(l);
-								sBlocks.remove();							
+				// sink all the sinking ships
+				for (Craft pcraft : CraftManager.getInstance().getCraftsInWorld(w)) {
+					if(pcraft!=null && pcraft.getSinking()==true) {
+						long ticksElapsed = ( System.currentTimeMillis() - pcraft.getLastCruiseUpdate() ) / 50;
+						if ( Math.abs( ticksElapsed ) >= pcraft.getType().getSinkRateTicks() ) {
+							int dx=0;
+							int dz=0;
+							if(pcraft.getType().getKeepMovingOnSink()) {
+								dx=pcraft.getLastDX();
+								dz=pcraft.getLastDZ();								
 							}
-						} else {
-							// don't process under 0 level
-							 sBlocks.remove();
+							pcraft.translate(dx, -1, dz);
+							if(pcraft.getLastCruiseUpdate()!=-1) {
+								pcraft.setLastCruisUpdate(System.currentTimeMillis());
+							} else {
+								pcraft.setLastCruisUpdate(0);
+							}
 						}
 					}
-					
-					//now add in air or water to where the blocks used to be
-//					List<MovecraftLocation> fillLocation = ListUtils.subtract( Arrays.asList( oldBlockSet ), Arrays.asList( sinkingBlocks.get(w) ) );
-					for(MovecraftLocation l : oldBlockSet) {
-						if(!sinkingBlocks.get(w).contains(l)) {
-							MapUpdateCommand c;
-							if(waterFillBlocks.get( w )!=null) {
-								if(waterFillBlocks.get( w ).contains(l)) {
-									c=new MapUpdateCommand(l,9,null);
-								} else {
-									c=new MapUpdateCommand(l,0,null);
-								}
-							} else {
-								c=new MapUpdateCommand(l,0,null);							
-							}
-						updates.add(c);
-						}
-					}
-					
-					boolean failed = MapUpdateManager.getInstance().addWorldUpdate( w, updates.toArray(new MapUpdateCommand [0]), null);
-
-					lastSinkingUpdate=System.currentTimeMillis();
 				}
 			}
 		}
